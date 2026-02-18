@@ -21,23 +21,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft = details.max_participants - details.participants.length;
 
         // Participants list HTML
-        let participantsHTML = "";
-        if (details.participants && details.participants.length > 0) {
-          participantsHTML = `
-            <div class="participants-section">
-              <strong>Participants (${details.participants.length}):</strong>
-              <ul class="participants-list">
-                ${details.participants.map(email => `<li>${email}</li>`).join("")}
-              </ul>
-            </div>
-          `;
-        } else {
-          participantsHTML = `
-            <div class="participants-section empty">
-              <em>No participants yet.</em>
-            </div>
-          `;
-        }
+          let participantsHTML = "";
+          if (details.participants && details.participants.length > 0) {
+            participantsHTML = `
+              <div class="participants-section">
+                <strong>Participants (${details.participants.length}):</strong>
+                <ul class="participants-list no-bullets">
+                  ${details.participants.map(email => `
+                    <li class="participant-item">
+                      <span class="participant-email">${email}</span>
+                      <button class="delete-participant" title="Remove participant" data-activity="${name}" data-email="${email}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#ffebee"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="#c62828" stroke-width="2" stroke-linecap="round"/></svg>
+                      </button>
+                    </li>
+                  `).join("")}
+                </ul>
+              </div>
+            `;
+          } else {
+            participantsHTML = `
+              <div class="participants-section empty">
+                <em>No participants yet.</em>
+              </div>
+            `;
+          }
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -59,6 +66,31 @@ document.addEventListener("DOMContentLoaded", () => {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+       
+       // Adiciona listeners para os botões de exclusão após inserir o card
+       const deleteButtons = activityCard.querySelectorAll('.delete-participant');
+       deleteButtons.forEach(btn => {
+         btn.addEventListener('click', async (e) => {
+           e.preventDefault();
+           const activityName = btn.getAttribute('data-activity');
+           const email = btn.getAttribute('data-email');
+           if (!activityName || !email) return;
+           if (!confirm(`Remove ${email} from ${activityName}?`)) return;
+           try {
+             const response = await fetch(`/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`, {
+               method: 'POST',
+             });
+             const result = await response.json();
+             if (response.ok) {
+               fetchActivities(); // Atualiza a lista
+             } else {
+               alert(result.detail || 'Failed to remove participant.');
+             }
+           } catch (error) {
+             alert('Error removing participant.');
+           }
+         });
+       });
   }
 
   // Handle form submission
@@ -82,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Atualiza a lista de atividades imediatamente
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
